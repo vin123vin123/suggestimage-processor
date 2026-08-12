@@ -90,7 +90,7 @@ app.post('/upload', upload.single('image'), async (req, res) => {
       asciiText
     });
 
-    const savedDoc = await newImage.save(); ? await newImage.save() : newImage;
+    const savedDoc = await newImage.save();
     
     // Provide links to download and automatically delete the records
     res.json({
