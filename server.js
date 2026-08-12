@@ -4,7 +4,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const multer = require('multer');
 const sharp = require('sharp');
-const savedDoc = await newImage.save();
+
 
 
 const app = express();
@@ -90,7 +90,7 @@ app.post('/upload', upload.single('image'), async (req, res) => {
       asciiText
     });
 
-    const savedDoc = await model.save() ? await newImage.save() : newImage;
+    const savedDoc = await newImage.save(); ? await newImage.save() : newImage;
     
     // Provide links to download and automatically delete the records
     res.json({
