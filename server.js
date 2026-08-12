@@ -4,6 +4,8 @@ const express = require('express');
 const mongoose = require('mongoose');
 const multer = require('multer');
 const sharp = require('sharp');
+const savedDoc = await newImage.save();
+
 
 const app = express();
 const PORT = process.env.PORT || 3000;
