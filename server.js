@@ -40,7 +40,7 @@ async function makeGrayscale(buffer) {
 // Helper: Convert to ASCII Text String
 async function makeAscii(buffer) {
   const image = await Jimp.read(buffer);
-  image.resize(60, Jimp.AUTO).grayscale(); // Sized for mobile screens
+  image.resize(60, Jimp.AUTO).grayscale(); 
   
   const chars = '@%#*+=-:. ';
   let asciiStr = '';
@@ -75,7 +75,7 @@ app.get('/', (req, res) => {
         button { width: 100%; background: #1a73e8; color: white; border: none; padding: 12px; border-radius: 6px; font-weight: bold; cursor: pointer; margin-bottom: 10px; font-size: 1rem; }
         button.ascii-btn { background: #34a853; }
         #previewContainer { text-align: center; display: none; margin-top: 15px; }
-        #imageViewer { max-width: 100%; max-height: 250px; border-radius: 8px; border: 1px solid #ddd; }
+        #imageViewer { max-width: 100%; max-height: 250px; border-radius: 8px; border: 1px solid #ddd; margin: 0 auto; }
         #asciiViewer { white-space: pre; font-family: monospace; font-size: 8px; letter-spacing: 4px; line-height: 8px; background: black; color: #00ff00; padding: 10px; border-radius: 8px; overflow-x: auto; text-align: left; display: none; max-height: 300px; }
         .links-box { display: none; background: #e8f0fe; padding: 15px; border-radius: 8px; border: 1px solid #1a73e8; margin-top: 15px; }
         .links-box a { display: block; color: #1a73e8; font-weight: bold; margin: 8px 0; text-decoration: none; }
@@ -87,13 +87,10 @@ app.get('/', (req, res) => {
       
       <div class="card">
         <input type="file" id="fileInput" accept="image/*">
-        
-        <!-- Live Viewer Actions -->
         <button id="grayViewBtn">1. View Grayscale Preview</button>
         <button id="asciiViewBtn" class="ascii-btn">2. View ASCII Art Preview</button>
       </div>
 
-      <!-- Live Preview Area -->
       <div id="previewContainer" class="card">
         <h3>✨ Live Preview Panel</h3>
         <img id="imageViewer" src="" alt="Grayscale Preview" style="display:none;">
@@ -119,7 +116,6 @@ app.get('/', (req, res) => {
 
         let currentMode = '';
 
-        // Reset views helper
         function hideAllViews() {
           previewContainer.style.display = 'block';
           imageViewer.style.display = 'none';
@@ -128,26 +124,24 @@ app.get('/', (req, res) => {
           linksBox.style.display = 'none';
         }
 
-        // Action: Generate Grayscale Preview locally in browser
         grayViewBtn.addEventListener('click', () => {
-          if (!fileInput.files[0]) return alert('Please pick an image file first!');
+          if (fileInput.files.length === 0) return alert('Please pick an image file first!');
           hideAllViews();
           currentMode = 'grayscale';
           
           const reader = new FileReader();
           reader.onload = function(e) {
             imageViewer.src = e.target.result;
-            imageViewer.style.filter = 'grayscale(100%)'; // Visual preview using canvas style
+            imageViewer.style.filter = 'grayscale(100%)';
             imageViewer.style.display = 'block';
             saveDbBtn.innerText = '💾 Save Grayscale Image to DB';
             saveDbBtn.style.display = 'block';
-          }
+          };
           reader.readAsDataURL(fileInput.files[0]);
         });
 
-        // Action: Request temporary ASCII rendering string from server
         asciiViewBtn.addEventListener('click', async () => {
-          if (!fileInput.files[0]) return alert('Please pick an image file first!');
+          if (fileInput.files.length === 0) return alert('Please pick an image file first!');
           hideAllViews();
           currentMode = 'ascii';
 
@@ -172,7 +166,6 @@ app.get('/', (req, res) => {
           }
         });
 
-        // Action: Finally save confirmed variant to MongoDB
         saveDbBtn.addEventListener('click', async () => {
           const formData = new FormData();
           formData.append('image', fileInput.files[0]);
@@ -207,7 +200,6 @@ app.get('/', (req, res) => {
 
 // --- API PROCESSING ENDPOINTS ---
 
-// Temporary endpoint for ASCII preview layout engine
 app.post('/preview-ascii', upload.single('image'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'Missing file' });
@@ -218,7 +210,6 @@ app.post('/preview-ascii', upload.single('image'), async (req, res) => {
   }
 });
 
-// Main database commitment processing node
 app.post('/upload', upload.single('image'), async (req, res) => {
   try {
     const { mode } = req.body;
@@ -227,7 +218,6 @@ app.post('/upload', upload.single('image'), async (req, res) => {
     let grayscaleBuffer = null;
     let asciiText = null;
 
-    // Process only what the user requested based on the button clicked
     if (mode === 'grayscale') {
       grayscaleBuffer = await makeGrayscale(req.file.buffer);
     } else if (mode === 'ascii') {
@@ -242,8 +232,6 @@ app.post('/upload', upload.single('image'), async (req, res) => {
     });
 
     const savedDoc = await newImage.save();
-    
-    // Provide a direct, specific download link
     const downloadUrl = `${req.protocol}://${req.get('host')}/download/${savedDoc._id}/${mode}`;
     res.json({ downloadUrl });
 
@@ -253,9 +241,27 @@ app.post('/upload', upload.single('image'), async (req, res) => {
   }
 });
 
-// Single Download Endpoint with Forced Destruction Hook
 app.get('/download/:id/:type', async (req, res) => {
   try {
     const { id, type } = req.params;
     const doc = await ImageModel.findById(id);
 
+    if (!doc) return res.status(404).send('File missing, expired, or already destroyed.');
+
+    if (type === 'grayscale' && doc.grayscaleBuffer) {
+      res.setHeader('Content-Type', 'image/png');
+      res.setHeader('Content-Disposition', `attachment; filename="grayscale-${doc.originalName}.png"`);
+      res.send(doc.grayscaleBuffer);
+    } else if (type === 'ascii' && doc.asciiText) {
+      res.setHeader('Content-Type', 'text/plain');
+      res.setHeader('Content-Disposition', `attachment; filename="ascii-${doc.originalName}.txt"`);
+      res.send(doc.asciiText);
+    } else {
+res.setHeader('Content-Type', 'text/plain');
+      res.send(doc.asciiText);
+    }
+    await ImageModel.findByIdAndDelete(req.params.id);
+  } catch { res.status(500).send('Error.'); }
+});
+
+app.listen(PORT, () => console.log(`Running on port ${PORT}`));
